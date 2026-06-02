@@ -60,23 +60,36 @@ function App() {
     setLoading(false);
   }, []);
 
-  const loadConversations = async (workspaceId) => {
+  const handleLogin = async (email, password) => {
   try {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${process.env.REACT_APP_API_URL}/api/conversations/${workspaceId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+    const response = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
     });
     const data = await response.json();
-    setConversations(data);
-    // Calcular stats
-    const total = data.length;
-    const open = data.filter(c => c.status === "open").length;
-    const pending = data.filter(c => c.status === "pending").length;
-    const resolved = data.filter(c => c.status === "resolved").length;
-    setStats({ total, open, pending, resolved });
+    
+    if (response.ok) {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('workspace', JSON.stringify(data.workspace));
+      setUser(data.user);
+      setWorkspace(data.workspace);
+      setIsLoggedIn(true);
+    } else {
+      alert(data.error || 'Error al iniciar sesión');
+    }
   } catch (error) {
-    console.error('Error cargando conversaciones:', error);
+    alert('Error de conexión con el servidor');
   }
+};
+
+const handleLogout = () => {
+  localStorage.clear();
+  setUser(null);
+  setWorkspace(null);
+  setIsLoggedIn(false);
+  setSelectedConversation(null);
 };
 
   const selectConversation = (conversation) => {
