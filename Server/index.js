@@ -46,6 +46,14 @@ app.get('/', (req, res) => {
   res.json({ message: 'API funcionando 🚀' });
 });
 
+// Importar nuevas rutas
+const leadRoutes = require('./routes/leads');
+const pipelineRoutes = require('./routes/pipeline');
+
+// Usar nuevas rutas
+app.use('/api/leads', auth, leadRoutes);
+app.use('/api/pipeline', auth, pipelineRoutes);
+
 // Conectar a MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ Conectado a MongoDB'))

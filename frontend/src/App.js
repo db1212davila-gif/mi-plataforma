@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import AdminDashboard from './pages/AdminDashboard';
+import PipelineKanban from './components/PipelineKanban';
+import LeadScoring from './components/LeadScoring';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
@@ -43,7 +45,6 @@ function App() {
       setWorkspace(parsedWorkspace);
       setIsLoggedIn(true);
       
-      // Si es super_admin, mostrar dashboard admin
       if (parsedUser.role === 'super_admin') {
         setActiveTab('global_dashboard');
       } else {
@@ -199,109 +200,120 @@ function App() {
     <div style={{ minHeight: '100vh', backgroundColor: '#0d1117' }}>
       <Navbar user={user} workspace={workspace} activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} />
       
-      <div style={{ display: 'flex', height: 'calc(100vh - 60px)' }}>
-        {/* Sidebar izquierdo */}
-        <div style={{ width: '320px', backgroundColor: '#161b22', borderRight: '1px solid #30363d', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-          <div style={{ padding: '20px', borderBottom: '1px solid #30363d' }}>
-            <h3 style={{ margin: 0, color: 'white', fontSize: '16px' }}>{workspace?.name || 'Mi Empresa'}</h3>
-            <p style={{ margin: '5px 0 0', fontSize: '11px', color: '#8b949e' }}>Plan: {user?.plan || 'Free'} • {user?.name} • {user?.role}</p>
-          </div>
-          
-          <div style={{ padding: '15px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div style={{ backgroundColor: '#21262d', padding: '12px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '24px', fontWeight: 'bold', color: 'white' }}>{stats.total}</div><div style={{ fontSize: '11px', color: '#8b949e' }}>Total</div></div>
-            <div style={{ backgroundColor: '#21262d', padding: '12px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '24px', fontWeight: 'bold', color: '#4caf50' }}>{stats.open}</div><div style={{ fontSize: '11px', color: '#8b949e' }}>Abiertas</div></div>
-            <div style={{ backgroundColor: '#21262d', padding: '12px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ff9800' }}>{stats.pending}</div><div style={{ fontSize: '11px', color: '#8b949e' }}>Pendientes</div></div>
-            <div style={{ backgroundColor: '#21262d', padding: '12px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2196f3' }}>{stats.resolved}</div><div style={{ fontSize: '11px', color: '#8b949e' }}>Resueltas</div></div>
-          </div>
+      {/* Panel de contenido según pestaña seleccionada */}
+      {activeTab === 'pipeline' && (
+        <PipelineKanban workspaceId={user?.workspace} token={localStorage.getItem('token')} />
+      )}
+      
+      {activeTab === 'scoring' && (
+        <LeadScoring workspaceId={user?.workspace} token={localStorage.getItem('token')} />
+      )}
+      
+      {(activeTab === 'conversations' || activeTab === 'contacts' || activeTab === 'agents' || activeTab === 'reports' || activeTab === 'settings' || activeTab === 'billing') && (
+        <div style={{ display: 'flex', height: 'calc(100vh - 60px)' }}>
+          {/* Sidebar izquierdo */}
+          <div style={{ width: '320px', backgroundColor: '#161b22', borderRight: '1px solid #30363d', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid #30363d' }}>
+              <h3 style={{ margin: 0, color: 'white', fontSize: '16px' }}>{workspace?.name || 'Mi Empresa'}</h3>
+              <p style={{ margin: '5px 0 0', fontSize: '11px', color: '#8b949e' }}>Plan: {user?.plan || 'Free'} • {user?.name} • {user?.role}</p>
+            </div>
+            
+            <div style={{ padding: '15px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div style={{ backgroundColor: '#21262d', padding: '12px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '24px', fontWeight: 'bold', color: 'white' }}>{stats.total}</div><div style={{ fontSize: '11px', color: '#8b949e' }}>Total</div></div>
+              <div style={{ backgroundColor: '#21262d', padding: '12px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '24px', fontWeight: 'bold', color: '#4caf50' }}>{stats.open}</div><div style={{ fontSize: '11px', color: '#8b949e' }}>Abiertas</div></div>
+              <div style={{ backgroundColor: '#21262d', padding: '12px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ff9800' }}>{stats.pending}</div><div style={{ fontSize: '11px', color: '#8b949e' }}>Pendientes</div></div>
+              <div style={{ backgroundColor: '#21262d', padding: '12px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2196f3' }}>{stats.resolved}</div><div style={{ fontSize: '11px', color: '#8b949e' }}>Resueltas</div></div>
+            </div>
 
-          <div style={{ padding: '15px', borderTop: '1px solid #30363d', borderBottom: '1px solid #30363d' }}>
-            <select value={filterChannel} onChange={(e) => setFilterChannel(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', marginBottom: '10px' }}>
-              <option value="all">📱 Todos los canales</option>
-              <option value="whatsapp">💚 WhatsApp</option>
-              <option value="telegram">💙 Telegram</option>
-              <option value="messenger">💜 Messenger</option>
-            </select>
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white' }}>
-              <option value="all">📊 Todos los estados</option>
-              <option value="open">🟢 Abiertas</option>
-              <option value="pending">🟡 Pendientes</option>
-              <option value="resolved">🔵 Resueltas</option>
-            </select>
-          </div>
+            <div style={{ padding: '15px', borderTop: '1px solid #30363d', borderBottom: '1px solid #30363d' }}>
+              <select value={filterChannel} onChange={(e) => setFilterChannel(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', marginBottom: '10px' }}>
+                <option value="all">📱 Todos los canales</option>
+                <option value="whatsapp">💚 WhatsApp</option>
+                <option value="telegram">💙 Telegram</option>
+                <option value="messenger">💜 Messenger</option>
+              </select>
+              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white' }}>
+                <option value="all">📊 Todos los estados</option>
+                <option value="open">🟢 Abiertas</option>
+                <option value="pending">🟡 Pendientes</option>
+                <option value="resolved">🔵 Resueltas</option>
+              </select>
+            </div>
 
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {filteredConversations.map(conv => (
-              <div key={conv.id} onClick={() => selectConversation(conv)} style={{ padding: '15px', borderBottom: '1px solid #21262d', cursor: 'pointer', backgroundColor: selectedConversation?.id === conv.id ? '#1f6feb20' : 'transparent' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: getChannelColor(conv.channel), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', color: 'white' }}>{conv.avatar}</div>
-                    <strong style={{ color: 'white' }}>{conv.name}</strong>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {filteredConversations.map(conv => (
+                <div key={conv.id} onClick={() => selectConversation(conv)} style={{ padding: '15px', borderBottom: '1px solid #21262d', cursor: 'pointer', backgroundColor: selectedConversation?.id === conv.id ? '#1f6feb20' : 'transparent' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: getChannelColor(conv.channel), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', color: 'white' }}>{conv.avatar}</div>
+                      <strong style={{ color: 'white' }}>{conv.name}</strong>
+                    </div>
+                    <span>{getChannelIcon(conv.channel)}</span>
                   </div>
-                  <span>{getChannelIcon(conv.channel)}</span>
+                  <div style={{ fontSize: '12px', color: '#8b949e', marginBottom: '5px', marginLeft: '40px' }}>{conv.lastMessage}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginLeft: '40px' }}>
+                    <span style={{ fontSize: '10px', color: '#6e7681' }}>{conv.time}</span>
+                    <span style={{ fontSize: '11px', color: getStatusColor(conv.status) }}>{getStatusText(conv.status)}</span>
+                    {conv.unread > 0 && <span style={{ backgroundColor: '#1f6feb', color: 'white', borderRadius: '10px', padding: '2px 6px', fontSize: '10px' }}>{conv.unread}</span>}
+                  </div>
                 </div>
-                <div style={{ fontSize: '12px', color: '#8b949e', marginBottom: '5px', marginLeft: '40px' }}>{conv.lastMessage}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginLeft: '40px' }}>
-                  <span style={{ fontSize: '10px', color: '#6e7681' }}>{conv.time}</span>
-                  <span style={{ fontSize: '11px', color: getStatusColor(conv.status) }}>{getStatusText(conv.status)}</span>
-                  {conv.unread > 0 && <span style={{ backgroundColor: '#1f6feb', color: 'white', borderRadius: '10px', padding: '2px 6px', fontSize: '10px' }}>{conv.unread}</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Panel central - Chat */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {selectedConversation && (
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #30363d', backgroundColor: '#161b22' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: getChannelColor(selectedConversation.channel), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', color: 'white' }}>{selectedConversation.avatar}</div>
-                  <div><h3 style={{ margin: 0, color: 'white' }}>{selectedConversation.name}</h3><div style={{ fontSize: '11px', color: '#8b949e' }}>{getChannelIcon(selectedConversation.channel)} {selectedConversation.channel} • {selectedConversation.channelId}</div></div>
-                </div>
-                <select value={selectedConversation.status} onChange={(e) => updateConversationStatus(selectedConversation.id, e.target.value)} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #30363d', backgroundColor: '#21262d', color: 'white' }}>
-                  <option value="open">🟢 Abierta</option><option value="pending">🟡 Pendiente</option><option value="resolved">🔵 Resuelta</option>
-                </select>
-              </div>
+              ))}
             </div>
-          )}
-
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
-            {selectedConversation ? messages.map(msg => (
-              <div key={msg.id} style={{ display: 'flex', justifyContent: msg.from === 'agent' ? 'flex-end' : 'flex-start', marginBottom: '16px' }}>
-                <div style={{ maxWidth: '65%', padding: '10px 14px', borderRadius: '12px', backgroundColor: msg.from === 'agent' ? '#1f6feb' : '#21262d', color: 'white' }}>
-                  <div>{msg.text}</div><div style={{ fontSize: '10px', marginTop: '6px', opacity: 0.7 }}>{msg.time}</div>
-                </div>
-              </div>
-            )) : <div style={{ textAlign: 'center', color: '#8b949e', marginTop: '100px' }}>💬 Selecciona una conversación para comenzar</div>}
           </div>
 
-          {selectedConversation && (
-            <div style={{ padding: '16px 20px', borderTop: '1px solid #30363d', backgroundColor: '#161b22', display: 'flex', gap: '10px' }}>
-              <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && sendMessage()} placeholder="Escribe un mensaje..." style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', outline: 'none' }} />
-              <button onClick={sendMessage} style={{ padding: '12px 24px', backgroundColor: '#1f6feb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Enviar →</button>
-            </div>
-          )}
-        </div>
-
-        {/* Sidebar derecho */}
-        <div style={{ width: '280px', backgroundColor: '#161b22', borderLeft: '1px solid #30363d', padding: '20px' }}>
-          {selectedConversation ? (
-            <>
-              <h4 style={{ marginTop: 0, marginBottom: '16px', color: 'white' }}>ℹ️ Información</h4>
-              <div style={{ marginBottom: '20px' }}><div style={{ fontSize: '11px', color: '#8b949e' }}>Nombre</div><div style={{ fontSize: '14px', color: 'white', fontWeight: '500' }}>{selectedConversation.name}</div></div>
-              <div style={{ marginBottom: '20px' }}><div style={{ fontSize: '11px', color: '#8b949e' }}>Canal</div><div style={{ fontSize: '14px', color: 'white' }}>{getChannelIcon(selectedConversation.channel)} {selectedConversation.channel}</div></div>
-              <div style={{ marginBottom: '20px' }}><div style={{ fontSize: '11px', color: '#8b949e' }}>ID / Teléfono</div><div style={{ fontSize: '13px', color: '#c9d1d9' }}>{selectedConversation.channelId}</div></div>
-              <h4 style={{ marginTop: '24px', marginBottom: '12px', color: 'white' }}>⚡ Respuestas rápidas</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {['Gracias por contactarnos', 'En breve te atenderemos', '¿En qué más puedo ayudarte?', 'Tu pedido está en proceso'].map((respuesta, idx) => (
-                  <button key={idx} onClick={() => setNewMessage(respuesta)} style={{ padding: '8px 12px', textAlign: 'left', backgroundColor: '#21262d', border: '1px solid #30363d', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#c9d1d9' }}>{respuesta}</button>
-                ))}
+          {/* Panel central - Chat */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {selectedConversation && (
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #30363d', backgroundColor: '#161b22' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: getChannelColor(selectedConversation.channel), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', color: 'white' }}>{selectedConversation.avatar}</div>
+                    <div><h3 style={{ margin: 0, color: 'white' }}>{selectedConversation.name}</h3><div style={{ fontSize: '11px', color: '#8b949e' }}>{getChannelIcon(selectedConversation.channel)} {selectedConversation.channel} • {selectedConversation.channelId}</div></div>
+                  </div>
+                  <select value={selectedConversation.status} onChange={(e) => updateConversationStatus(selectedConversation.id, e.target.value)} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #30363d', backgroundColor: '#21262d', color: 'white' }}>
+                    <option value="open">🟢 Abierta</option><option value="pending">🟡 Pendiente</option><option value="resolved">🔵 Resuelta</option>
+                  </select>
+                </div>
               </div>
-            </>
-          ) : <div style={{ textAlign: 'center', color: '#8b949e', marginTop: '100px' }}>📌 Selecciona una conversación</div>}
+            )}
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+              {selectedConversation ? messages.map(msg => (
+                <div key={msg.id} style={{ display: 'flex', justifyContent: msg.from === 'agent' ? 'flex-end' : 'flex-start', marginBottom: '16px' }}>
+                  <div style={{ maxWidth: '65%', padding: '10px 14px', borderRadius: '12px', backgroundColor: msg.from === 'agent' ? '#1f6feb' : '#21262d', color: 'white' }}>
+                    <div>{msg.text}</div><div style={{ fontSize: '10px', marginTop: '6px', opacity: 0.7 }}>{msg.time}</div>
+                  </div>
+                </div>
+              )) : <div style={{ textAlign: 'center', color: '#8b949e', marginTop: '100px' }}>💬 Selecciona una conversación para comenzar</div>}
+            </div>
+
+            {selectedConversation && (
+              <div style={{ padding: '16px 20px', borderTop: '1px solid #30363d', backgroundColor: '#161b22', display: 'flex', gap: '10px' }}>
+                <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && sendMessage()} placeholder="Escribe un mensaje..." style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', outline: 'none' }} />
+                <button onClick={sendMessage} style={{ padding: '12px 24px', backgroundColor: '#1f6feb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Enviar →</button>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar derecho */}
+          <div style={{ width: '280px', backgroundColor: '#161b22', borderLeft: '1px solid #30363d', padding: '20px' }}>
+            {selectedConversation ? (
+              <>
+                <h4 style={{ marginTop: 0, marginBottom: '16px', color: 'white' }}>ℹ️ Información</h4>
+                <div style={{ marginBottom: '20px' }}><div style={{ fontSize: '11px', color: '#8b949e' }}>Nombre</div><div style={{ fontSize: '14px', color: 'white', fontWeight: '500' }}>{selectedConversation.name}</div></div>
+                <div style={{ marginBottom: '20px' }}><div style={{ fontSize: '11px', color: '#8b949e' }}>Canal</div><div style={{ fontSize: '14px', color: 'white' }}>{getChannelIcon(selectedConversation.channel)} {selectedConversation.channel}</div></div>
+                <div style={{ marginBottom: '20px' }}><div style={{ fontSize: '11px', color: '#8b949e' }}>ID / Teléfono</div><div style={{ fontSize: '13px', color: '#c9d1d9' }}>{selectedConversation.channelId}</div></div>
+                <h4 style={{ marginTop: '24px', marginBottom: '12px', color: 'white' }}>⚡ Respuestas rápidas</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {['Gracias por contactarnos', 'En breve te atenderemos', '¿En qué más puedo ayudarte?', 'Tu pedido está en proceso'].map((respuesta, idx) => (
+                    <button key={idx} onClick={() => setNewMessage(respuesta)} style={{ padding: '8px 12px', textAlign: 'left', backgroundColor: '#21262d', border: '1px solid #30363d', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#c9d1d9' }}>{respuesta}</button>
+                  ))}
+                </div>
+              </>
+            ) : <div style={{ textAlign: 'center', color: '#8b949e', marginTop: '100px' }}>📌 Selecciona una conversación</div>}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
