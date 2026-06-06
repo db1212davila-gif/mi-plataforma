@@ -8,7 +8,10 @@ const app = express();
 const server = http.createServer(app);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://mi-plataforma-six.vercel.app', 'https://mi-plataforma.vercel.app'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Modelos
