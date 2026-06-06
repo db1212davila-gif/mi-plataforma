@@ -37,7 +37,7 @@ app.use('/api/auth', authRoutes);
 
 // Usar rutas protegidas
 app.use('/api/workspaces', auth, workspaceRoutes);
-aapp.use('/api/contacts', contactRoutes);
+app.use('/api/contacts', contactRoutes);
 app.use('/api/conversations', auth, conversationRoutes);
 app.use('/api/messages', auth, messageRoutes);
 app.use('/api/email', auth, emailRoutes);
