@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http');
@@ -15,7 +15,6 @@ app.use(express.json());
 const User = require('./models/User');
 const Workspace = require('./models/Workspace');
 const Contact = require('./models/Contact');
-// const conversationRoutes = require('./routes/conversations');
 const Conversation = require('./models/Conversation');
 const Message = require('./models/Message');
 
@@ -26,35 +25,30 @@ const auth = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
 const workspaceRoutes = require('./routes/workspaces');
 const contactRoutes = require('./routes/contacts');
-// const conversationRoutes = require('./routes/conversations');
 const conversationRoutes = require('./routes/conversations');
 const messageRoutes = require('./routes/messages');
 const emailRoutes = require('./routes/email');
 const adminRoutes = require('./routes/admin');
+const leadRoutes = require('./routes/leads');
+const pipelineRoutes = require('./routes/pipeline');
 
 // Usar rutas públicas
 app.use('/api/auth', authRoutes);
 
 // Usar rutas protegidas
 app.use('/api/workspaces', auth, workspaceRoutes);
-aapp.use('/api/contacts', contactRoutes);
+app.use('/api/contacts', auth, contactRoutes);
 app.use('/api/conversations', auth, conversationRoutes);
 app.use('/api/messages', auth, messageRoutes);
 app.use('/api/email', auth, emailRoutes);
-app.use('/api/admin', auth, adminRoutes); // Rutas de administración
+app.use('/api/admin', auth, adminRoutes);
+app.use('/api/leads', auth, leadRoutes);
+app.use('/api/pipeline', auth, pipelineRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {
   res.json({ message: 'API funcionando 🚀' });
 });
-
-// Importar nuevas rutas
-const leadRoutes = require('./routes/leads');
-const pipelineRoutes = require('./routes/pipeline');
-
-// Usar nuevas rutas
-app.use('/api/leads', auth, leadRoutes);
-app.use('/api/pipeline', auth, pipelineRoutes);
 
 // Conectar a MongoDB
 mongoose.connect(process.env.MONGO_URI)
