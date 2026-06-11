@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: evolution-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=evolution_user
+      - POSTGRES_PASSWORD=evolution_password
+      - POSTGRES_DB=evolution_db
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    networks:
+      - omniconnect-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evolution_user -d evolution_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:alpine
+    container_name: evolution-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - omniconnect-network
+
+  evolution-api:
+    image: atendai/evolution-api:latest
+    container_name: evolution-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./.env:/evolution/evolution-api/.env
+      - ./evolution_instances:/evolution/instances
+      - ./evolution_media:/evolution/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - omniconnect-network
+
+networks:
+  omniconnect-network:
+    driver: bridge

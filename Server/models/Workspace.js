@@ -37,7 +37,8 @@ const workspaceSchema = new mongoose.Schema({
     timezone: { type: String, default: 'America/Santiago' },
     language: { type: String, default: 'es' },
     logo: { type: String, default: '' },
-    primaryColor: { type: String, default: '#1f6feb' }
+    primaryColor: { type: String, default: '#1f6feb' },
+    quickReplies: { type: [String], default: ['Gracias por contactarnos', 'En breve te atenderemos', '¿En qué más puedo ayudarte?', 'Tu pedido está en proceso'] }
   },
   members: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

@@ -34,6 +34,9 @@ const conversationRoutes = require('./routes/conversations');
 const messageRoutes = require('./routes/messages');
 const emailRoutes = require('./routes/email');
 const adminRoutes = require('./routes/admin');
+// Webhook de WhatsApp (Evolution API)
+const whatsappWebhook = require('./webhooks/whatsapp');
+app.use('/webhook/whatsapp', whatsappWebhook);
 
 // Usar rutas públicas
 app.use('/api/auth', authRoutes);
