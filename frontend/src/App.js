@@ -25,7 +25,41 @@ function App() {
   const [activeTab, setActiveTab] = useState('conversations');
 
   // ============================================================
-  // VERIFICAR AUTENTICACIÓN AL CARGAR (SIN DATOS FALSOS)
+  // CARGAR CONTACTOS REALES DESDE EL BACKEND
+  // ============================================================
+  const loadRealContacts = async (workspaceId, token) => {
+    try {
+      const response = await fetch(`${API_URL}/api/contacts/${workspaceId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const contacts = await response.json();
+        // Convertir contactos a formato de conversación para mostrar en bandeja
+        const convFormat = contacts.map(contact => ({
+          _id: contact._id,
+          contact: contact,
+          channel: contact.canal,
+          status: 'open',
+          lastMessage: 'Sin mensajes aún',
+          lastMessageTime: contact.createdAt,
+          unreadCount: 0,
+          workspace: workspaceId
+        }));
+        setConversations(convFormat);
+        setStats({
+          total: contacts.length,
+          open: contacts.length,
+          pending: 0,
+          resolved: 0
+        });
+      }
+    } catch (error) {
+      console.error('Error cargando contactos:', error);
+    }
+  };
+
+  // ============================================================
+  // VERIFICAR AUTENTICACIÓN AL CARGAR
   // ============================================================
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -42,36 +76,11 @@ function App() {
       if (parsedUser.role === 'super_admin') {
         setActiveTab('global_dashboard');
       } else {
-        // Cargar conversaciones reales desde el backend
-        loadRealConversations(parsedWorkspace.id, token);
+        loadRealContacts(parsedWorkspace.id, token);
       }
     }
     setLoading(false);
   }, []);
-
-  // ============================================================
-  // CARGAR CONVERSACIONES REALES DESDE EL BACKEND
-  // ============================================================
-  const loadRealConversations = async (workspaceId, token) => {
-    try {
-      const response = await fetch(`${API_URL}/api/conversations/${workspaceId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setConversations(data);
-        
-        // Calcular stats reales
-        const total = data.length;
-        const open = data.filter(c => c.status === "open").length;
-        const pending = data.filter(c => c.status === "pending").length;
-        const resolved = data.filter(c => c.status === "resolved").length;
-        setStats({ total, open, pending, resolved });
-      }
-    } catch (error) {
-      console.error('Error cargando conversaciones:', error);
-    }
-  };
 
   // ============================================================
   // LOGIN REAL
@@ -97,7 +106,7 @@ function App() {
         if (data.user.role === 'super_admin') {
           setActiveTab('global_dashboard');
         } else {
-          await loadRealConversations(data.workspace.id, data.token);
+          await loadRealContacts(data.workspace.id, data.token);
         }
       } else {
         alert(data.error || 'Error al iniciar sesión');
@@ -257,7 +266,7 @@ function App() {
       
       {activeTab === 'conversations' && (
         <div style={{ display: 'flex', height: 'calc(100vh - 70px)' }}>
-          {/* Sidebar izquierdo - Lista de conversaciones */}
+          {/* Sidebar izquierdo - Lista de contactos */}
           <div style={{ width: '340px', backgroundColor: '#161b22', borderRight: '1px solid #30363d', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
             <div style={{ padding: '20px', borderBottom: '1px solid #30363d' }}>
               <h3 style={{ margin: 0, color: 'white', fontSize: '16px' }}>{workspace?.name}</h3>
@@ -310,9 +319,9 @@ function App() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: getChannelColor(conv.channel), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', color: 'white' }}>
-                          {contact.name?.charAt(0) || '?'}
+                          {contact.name?.charAt(0) || contact.nombre?.charAt(0) || '?'}
                         </div>
-                        <strong style={{ color: 'white' }}>{contact.name || 'Sin nombre'}</strong>
+                        <strong style={{ color: 'white' }}>{contact.name || contact.nombre || 'Sin nombre'}</strong>
                       </div>
                       <span style={{ fontSize: '18px' }}>{getChannelIcon(conv.channel)}</span>
                     </div>
@@ -345,10 +354,10 @@ function App() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: getChannelColor(selectedConversation.channel), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 'bold', color: 'white' }}>
-                      {selectedConversation.contact?.name?.charAt(0) || '?'}
+                      {selectedConversation.contact?.name?.charAt(0) || selectedConversation.contact?.nombre?.charAt(0) || '?'}
                     </div>
                     <div>
-                      <h3 style={{ margin: 0, color: 'white', fontSize: '18px' }}>{selectedConversation.contact?.name || 'Contacto'}</h3>
+                      <h3 style={{ margin: 0, color: 'white', fontSize: '18px' }}>{selectedConversation.contact?.name || selectedConversation.contact?.nombre || 'Contacto'}</h3>
                       <div style={{ fontSize: '12px', color: '#8b949e', marginTop: '2px' }}>
                         {getChannelIcon(selectedConversation.channel)} {selectedConversation.channel} • {selectedConversation.contact?.channelId}
                       </div>
@@ -375,7 +384,7 @@ function App() {
                 ))
               ) : (
                 <div style={{ textAlign: 'center', color: '#8b949e', marginTop: '100px', fontSize: '14px' }}>
-                  💬 Selecciona una conversación para comenzar
+                  💬 Selecciona un contacto para comenzar
                 </div>
               )}
             </div>
@@ -404,7 +413,7 @@ function App() {
                 <h4 style={{ marginTop: 0, marginBottom: '16px', color: 'white' }}>ℹ️ Información</h4>
                 <div style={{ marginBottom: '20px' }}>
                   <div style={{ fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Nombre</div>
-                  <div style={{ fontSize: '14px', color: 'white', fontWeight: '500' }}>{selectedConversation.contact?.name}</div>
+                  <div style={{ fontSize: '14px', color: 'white', fontWeight: '500' }}>{selectedConversation.contact?.name || selectedConversation.contact?.nombre}</div>
                 </div>
                 <div style={{ marginBottom: '20px' }}>
                   <div style={{ fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Canal</div>
@@ -425,7 +434,7 @@ function App() {
               </>
             ) : (
               <div style={{ textAlign: 'center', color: '#8b949e', marginTop: '100px', fontSize: '13px' }}>
-                📌 Selecciona una<br/>conversación para<br/>ver los detalles
+                📌 Selecciona un<br/>contacto para<br/>ver los detalles
               </div>
             )}
           </div>
