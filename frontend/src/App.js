@@ -34,7 +34,6 @@ function App() {
       });
       if (response.ok) {
         const contacts = await response.json();
-        // Convertir contactos a formato de conversación para mostrar en bandeja
         const convFormat = contacts.map(contact => ({
           _id: contact._id,
           contact: contact,
@@ -406,7 +405,7 @@ function App() {
             )}
           </div>
 
-          {/* Sidebar derecho - Info */}
+          {/* Sidebar derecho - Info y Respuestas Rápidas DINÁMICAS */}
           <div style={{ width: '280px', backgroundColor: '#161b22', borderLeft: '1px solid #30363d', padding: '20px', overflowY: 'auto' }}>
             {selectedConversation ? (
               <>
@@ -423,10 +422,33 @@ function App() {
                   <div style={{ fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>ID / Teléfono</div>
                   <div style={{ fontSize: '13px', color: '#c9d1d9' }}>{selectedConversation.contact?.channelId}</div>
                 </div>
+                
+                {/* ============================================================ */}
+                {/* RESPUESTAS RÁPIDAS DINÁMICAS DESDE WORKSPACE */}
+                {/* ============================================================ */}
                 <h4 style={{ marginTop: '24px', marginBottom: '12px', color: 'white' }}>⚡ Respuestas rápidas</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {['Gracias por contactarnos', 'En breve te atenderemos', '¿En qué más puedo ayudarte?', 'Tu pedido está en proceso'].map((respuesta, idx) => (
-                    <button key={idx} onClick={() => setNewMessage(respuesta)} style={{ padding: '8px 12px', textAlign: 'left', backgroundColor: '#21262d', border: '1px solid #30363d', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', color: '#c9d1d9', transition: 'all 0.2s' }}>
+                  {(workspace?.settings?.quickReplies && workspace.settings.quickReplies.length > 0 
+                    ? workspace.settings.quickReplies 
+                    : ['Gracias por contactarnos', 'En breve te atenderemos', '¿En qué más puedo ayudarte?', 'Tu pedido está en proceso']
+                  ).map((respuesta, idx) => (
+                    <button 
+                      key={idx} 
+                      onClick={() => setNewMessage(respuesta)} 
+                      style={{ 
+                        padding: '8px 12px', 
+                        textAlign: 'left', 
+                        backgroundColor: '#21262d', 
+                        border: '1px solid #30363d', 
+                        borderRadius: '8px', 
+                        cursor: 'pointer', 
+                        fontSize: '12px', 
+                        color: '#c9d1d9', 
+                        transition: 'all 0.2s' 
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#30363d'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#21262d'}
+                    >
                       {respuesta}
                     </button>
                   ))}
