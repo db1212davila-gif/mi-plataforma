@@ -2,10 +2,6 @@ const express = require('express');
 const router = express.Router();
 const Contact = require('../models/Contact');
 
-// ============================================================
-// MODIFICADO: Ahora recibe workspaceId como parámetro
-// ============================================================
-
 // Obtener todos los contactos del workspace
 router.get('/:workspaceId', async (req, res) => {
   try {
@@ -22,11 +18,11 @@ router.post('/:workspaceId', async (req, res) => {
   try {
     const contact = new Contact({
       workspace: req.params.workspaceId,
-      name: req.body.name,
-      channel: req.body.channel,
+      nombre: req.body.nombre,      // ← español
+      canal: req.body.canal,        // ← español
       channelId: req.body.channelId,
-      phoneNumber: req.body.phoneNumber,
-      email: req.body.email
+      telefono: req.body.telefono || '',
+      email: req.body.email || ''
     });
     await contact.save();
     res.status(201).json(contact);
