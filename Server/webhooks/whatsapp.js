@@ -90,8 +90,10 @@ router.post('/:instanceName', async (req, res) => {
     // ── Guardar mensaje ──
     const newMessage = new Message({
       conversation: conversation._id,
+      workspace:    workspaceId,
       from:         'contact',
       text:         text,
+      channel:      'whatsapp',
       sender:       contact._id,
       senderModel:  'Contact',
       timestamp:    new Date()
