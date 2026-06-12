@@ -1,7 +1,7 @@
-﻿const express   = require('express');
-const mongoose  = require('mongoose');
-const cors      = require('cors');
-const http      = require('http');
+﻿const express    = require('express');
+const mongoose   = require('mongoose');
+const cors       = require('cors');
+const http       = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
 
@@ -9,7 +9,7 @@ const app    = express();
 const server = http.createServer(app);
 
 // ─────────────────────────────────────────────────────────────
-// SOCKET.IO — con salas por workspace
+// SOCKET.IO
 // ─────────────────────────────────────────────────────────────
 const io = new Server(server, {
   cors: {
@@ -25,7 +25,6 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log(`🔌 Cliente conectado: ${socket.id}`);
 
-  // El frontend emite 'join_workspace' con el workspaceId
   socket.on('join_workspace', (workspaceId) => {
     socket.join(workspaceId);
     console.log(`📦 Socket ${socket.id} unido al workspace: ${workspaceId}`);
@@ -36,7 +35,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// Hacer io accesible en todas las rutas vía req.app.get('io')
 app.set('io', io);
 
 // ─────────────────────────────────────────────────────────────
@@ -53,12 +51,7 @@ app.use(cors({
 app.use(express.json());
 
 // ─────────────────────────────────────────────────────────────
-// MIDDLEWARES DE AUTH
-// ─────────────────────────────────────────────────────────────
-const auth = require('./middleware/auth');
-
-// ─────────────────────────────────────────────────────────────
-// WEBHOOKS (sin auth — Evolution API llama directo)
+// WEBHOOKS (sin auth)
 // ─────────────────────────────────────────────────────────────
 const whatsappWebhook  = require('./webhooks/whatsapp');
 const telegramWebhook  = require('./webhooks/telegram');
@@ -67,6 +60,11 @@ const messengerWebhook = require('./webhooks/messenger');
 app.use('/webhook/whatsapp',  whatsappWebhook);
 app.use('/webhook/telegram',  telegramWebhook);
 app.use('/webhook/messenger', messengerWebhook);
+
+// ─────────────────────────────────────────────────────────────
+// AUTH MIDDLEWARE
+// ─────────────────────────────────────────────────────────────
+const auth = require('./middleware/auth');
 
 // ─────────────────────────────────────────────────────────────
 // RUTAS PÚBLICAS
