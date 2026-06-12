@@ -22,67 +22,53 @@ const getContactName  = (contact) => contact?.name || contact?.nombre || 'Sin no
 const getContactInit  = (contact) => (contact?.name || contact?.nombre || '?').charAt(0).toUpperCase();
 const formatTime      = (d) => d ? new Date(d).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '';
 
+// ✅ FIX: extrae siempre el string del workspaceId aunque venga como objeto
+const getWorkspaceId  = (conv, fallback) => {
+  if (!conv) return fallback;
+  const ws = conv.workspace;
+  if (!ws) return fallback;
+  return ws._id || ws.id || ws.toString() || fallback;
+};
+
 function App() {
-  // ── Estado principal ──
-  const [conversations, setConversations]         = useState([]);
-  const [selectedConversation, setSelectedConv]   = useState(null);
-  const [messages, setMessages]                   = useState([]);
-  const [newMessage, setNewMessage]               = useState('');
-  const [user, setUser]                           = useState(null);
-  const [workspace, setWorkspace]                 = useState(null);
-  const [loading, setLoading]                     = useState(true);
-  const [sendingMsg, setSendingMsg]               = useState(false);
-  const [isLoggedIn, setIsLoggedIn]               = useState(false);
-  const [activeTab, setActiveTab]                 = useState('conversations');
-
-  // ── Filtros y búsqueda ──
-  const [filterChannel, setFilterChannel]         = useState('all');
-  const [filterStatus, setFilterStatus]           = useState('all');
-  const [searchQuery, setSearchQuery]             = useState('');
-
-  // ── Stats ──
-  const [stats, setStats] = useState({ total: 0, open: 0, pending: 0, resolved: 0 });
-
-  // ── Notas internas ──
-  const [activeRightTab, setActiveRightTab]       = useState('info'); // 'info' | 'notes'
-  const [notes, setNotes]                         = useState([]);
-  const [newNote, setNewNote]                     = useState('');
-
-  // ── Refs ──
+  const [conversations, setConversations]       = useState([]);
+  const [selectedConversation, setSelectedConv] = useState(null);
+  const [messages, setMessages]                 = useState([]);
+  const [newMessage, setNewMessage]             = useState('');
+  const [user, setUser]                         = useState(null);
+  const [workspace, setWorkspace]               = useState(null);
+  const [loading, setLoading]                   = useState(true);
+  const [sendingMsg, setSendingMsg]             = useState(false);
+  const [isLoggedIn, setIsLoggedIn]             = useState(false);
+  const [activeTab, setActiveTab]               = useState('conversations');
+  const [filterChannel, setFilterChannel]       = useState('all');
+  const [filterStatus, setFilterStatus]         = useState('all');
+  const [searchQuery, setSearchQuery]           = useState('');
+  const [stats, setStats]                       = useState({ total: 0, open: 0, pending: 0, resolved: 0 });
+  const [activeRightTab, setActiveRightTab]     = useState('info');
+  const [notes, setNotes]                       = useState([]);
+  const [newNote, setNewNote]                   = useState('');
   const messagesEndRef = useRef(null);
   const socketRef      = useRef(null);
 
-  // ── Scroll al último mensaje ──
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ─────────────────────────────────────────────────────────────
-  // SOCKET.IO — conectar al workspace como sala privada
-  // ─────────────────────────────────────────────────────────────
   const connectSocket = useCallback((workspaceId, token) => {
     if (socketRef.current) socketRef.current.disconnect();
-
-    const socket = io(API_URL, {
-      auth: { token },
-      transports: ['websocket']
-    });
+    const socket = io(API_URL, { auth: { token }, transports: ['websocket'] });
 
     socket.on('connect', () => {
       console.log('🔌 Socket conectado');
-      socket.emit('join_workspace', workspaceId); // entrar a la sala del workspace
+      socket.emit('join_workspace', workspaceId);
     });
 
-    socket.on('new_message', ({ conversationId, message, conversation }) => {
-      // Actualizar mensajes si la conv está seleccionada
+    socket.on('new_message', ({ conversationId, message }) => {
       setSelectedConv(prev => {
-        if (prev?._id === conversationId) {
-          setMessages(msgs => [...msgs, message]);
-        }
+        if (prev?._id === conversationId) setMessages(msgs => [...msgs, message]);
         return prev;
       });
-
-      // Actualizar lista de conversaciones
       setConversations(prev => prev.map(c =>
         c._id === conversationId
           ? { ...c, lastMessage: message.text, lastMessageTime: message.timestamp, unreadCount: (c.unreadCount || 0) + 1 }
@@ -100,9 +86,6 @@ function App() {
 
   useEffect(() => () => socketRef.current?.disconnect(), []);
 
-  // ─────────────────────────────────────────────────────────────
-  // CARGAR CONVERSACIONES REALES (no solo contactos)
-  // ─────────────────────────────────────────────────────────────
   const loadConversations = useCallback(async (workspaceId, token) => {
     try {
       const res = await fetch(`${API_URL}/api/conversations/${workspaceId}`, {
@@ -122,21 +105,16 @@ function App() {
     }
   }, []);
 
-  // ─────────────────────────────────────────────────────────────
-  // VERIFICAR AUTENTICACIÓN AL CARGAR
-  // ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    const token          = localStorage.getItem('token');
-    const storedUser     = localStorage.getItem('user');
-    const storedWS       = localStorage.getItem('workspace');
-
+    const token      = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+    const storedWS   = localStorage.getItem('workspace');
     if (token && storedUser && storedWS) {
       const parsedUser = JSON.parse(storedUser);
       const parsedWS   = JSON.parse(storedWS);
       setUser(parsedUser);
       setWorkspace(parsedWS);
       setIsLoggedIn(true);
-
       if (parsedUser.role === 'super_admin') {
         setActiveTab('global_dashboard');
       } else {
@@ -147,19 +125,15 @@ function App() {
     setLoading(false);
   }, [loadConversations, connectSocket]);
 
-  // ─────────────────────────────────────────────────────────────
-  // LOGIN
-  // ─────────────────────────────────────────────────────────────
   const handleLogin = async (email, password) => {
     setLoading(true);
     try {
       const res  = await fetch(`${API_URL}/api/auth/login`, {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password })
       });
       const data = await res.json();
-
       if (res.ok) {
         localStorage.setItem('token',     data.token);
         localStorage.setItem('user',      JSON.stringify(data.user));
@@ -167,7 +141,6 @@ function App() {
         setUser(data.user);
         setWorkspace(data.workspace);
         setIsLoggedIn(true);
-
         if (data.user.role === 'super_admin') {
           setActiveTab('global_dashboard');
         } else {
@@ -190,9 +163,7 @@ function App() {
     setSelectedConv(null); setConversations([]); setMessages([]);
   };
 
-  // ─────────────────────────────────────────────────────────────
-  // SELECCIONAR CONVERSACIÓN
-  // ─────────────────────────────────────────────────────────────
+  // ✅ FIX: usa getWorkspaceId para extraer el string correcto
   const selectConversation = async (conv) => {
     setSelectedConv(conv);
     setMessages([]);
@@ -200,15 +171,16 @@ function App() {
     setActiveRightTab('info');
 
     const token = localStorage.getItem('token');
+    const wsId  = getWorkspaceId(conv, workspace?.id);
+
     try {
-      const res = await fetch(`${API_URL}/api/conversations/${conv.workspace}/${conv._id}`, {
+      const res = await fetch(`${API_URL}/api/conversations/${wsId}/${conv._id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);
         setNotes(data.conversation?.notes || []);
-        // Limpiar badge de no leídos localmente
         setConversations(prev => prev.map(c => c._id === conv._id ? { ...c, unreadCount: 0 } : c));
       }
     } catch (err) {
@@ -216,15 +188,15 @@ function App() {
     }
   };
 
-  // ─────────────────────────────────────────────────────────────
-  // ENVIAR MENSAJE
-  // ─────────────────────────────────────────────────────────────
+  // ✅ FIX: usa getWorkspaceId para extraer el string correcto
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || sendingMsg) return;
     setSendingMsg(true);
     const token = localStorage.getItem('token');
+    const wsId  = getWorkspaceId(selectedConversation, workspace?.id);
+
     try {
-      const res = await fetch(`${API_URL}/api/messages/${selectedConversation.workspace}/${selectedConversation._id}`, {
+      const res = await fetch(`${API_URL}/api/messages/${wsId}/${selectedConversation._id}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body:    JSON.stringify({ text: newMessage, from: 'agent' })
@@ -238,14 +210,16 @@ function App() {
             : c
         ));
         setNewMessage('');
+      } else {
+        const err = await res.json();
+        alert('Error: ' + (err.error || res.status));
       }
-    } catch { alert('Error al enviar mensaje'); }
+    } catch {
+      alert('Error al enviar mensaje');
+    }
     setSendingMsg(false);
   };
 
-  // ─────────────────────────────────────────────────────────────
-  // ACTUALIZAR ESTADO O AGENTE
-  // ─────────────────────────────────────────────────────────────
   const updateConversation = async (conversationId, updates) => {
     const token = localStorage.getItem('token');
     try {
@@ -262,9 +236,6 @@ function App() {
     } catch (err) { console.error('Error actualizando conversación:', err); }
   };
 
-  // ─────────────────────────────────────────────────────────────
-  // AGREGAR NOTA INTERNA
-  // ─────────────────────────────────────────────────────────────
   const addNote = async () => {
     if (!newNote.trim() || !selectedConversation) return;
     const token = localStorage.getItem('token');
@@ -282,9 +253,6 @@ function App() {
     } catch (err) { console.error('Error agregando nota:', err); }
   };
 
-  // ─────────────────────────────────────────────────────────────
-  // FILTRADO LOCAL
-  // ─────────────────────────────────────────────────────────────
   const filteredConversations = conversations.filter(c => {
     const matchChannel = filterChannel === 'all' || c.channel === filterChannel;
     const matchStatus  = filterStatus  === 'all' || c.status  === filterStatus;
@@ -292,18 +260,12 @@ function App() {
     return matchChannel && matchStatus && matchSearch;
   });
 
-  // ─────────────────────────────────────────────────────────────
-  // LOADING
-  // ─────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#0d1117', color: 'white', fontSize: '16px' }}>
       Cargando OmniConnect CRM...
     </div>
   );
 
-  // ─────────────────────────────────────────────────────────────
-  // LOGIN SCREEN
-  // ─────────────────────────────────────────────────────────────
   if (!isLoggedIn) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#0d1117' }}>
       <div style={{ backgroundColor: '#161b22', padding: '40px', borderRadius: '12px', width: '400px', border: '1px solid #30363d' }}>
@@ -326,9 +288,6 @@ function App() {
     </div>
   );
 
-  // ─────────────────────────────────────────────────────────────
-  // SUPER ADMIN
-  // ─────────────────────────────────────────────────────────────
   if (user?.role === 'super_admin') return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0d1117' }}>
       <Navbar user={user} workspace={workspace} activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} />
@@ -341,9 +300,6 @@ function App() {
     </div>
   );
 
-  // ─────────────────────────────────────────────────────────────
-  // VISTA CLIENTE
-  // ─────────────────────────────────────────────────────────────
   const token = localStorage.getItem('token');
 
   return (
@@ -362,16 +318,11 @@ function App() {
 
           {/* ── SIDEBAR IZQUIERDO ── */}
           <div style={{ width: '320px', backgroundColor: '#161b22', borderRight: '1px solid #30363d', display: 'flex', flexDirection: 'column' }}>
-            
-            {/* Header workspace */}
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #30363d' }}>
               <h3 style={{ margin: 0, color: 'white', fontSize: '15px' }}>{workspace?.name}</h3>
-              <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#8b949e' }}>
-                {user?.name} · {user?.role}
-              </p>
+              <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#8b949e' }}>{user?.name} · {user?.role}</p>
             </div>
 
-            {/* Stats */}
             <div style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', borderBottom: '1px solid #30363d' }}>
               {[
                 { label: 'Total',      value: stats.total,    color: 'white'   },
@@ -386,18 +337,12 @@ function App() {
               ))}
             </div>
 
-            {/* Búsqueda */}
             <div style={{ padding: '12px 16px', borderBottom: '1px solid #30363d' }}>
-              <input
-                type="text"
-                placeholder="🔍 Buscar contacto..."
-                value={searchQuery}
+              <input type="text" placeholder="🔍 Buscar contacto..." value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
-              />
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }} />
             </div>
 
-            {/* Filtros */}
             <div style={{ padding: '10px 16px', display: 'flex', gap: '8px', borderBottom: '1px solid #30363d' }}>
               <select value={filterChannel} onChange={e => setFilterChannel(e.target.value)}
                 style={{ flex: 1, padding: '6px 8px', borderRadius: '8px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', fontSize: '12px' }}>
@@ -415,7 +360,6 @@ function App() {
               </select>
             </div>
 
-            {/* Lista de conversaciones */}
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {filteredConversations.length === 0 ? (
                 <div style={{ padding: '40px 20px', textAlign: 'center', color: '#8b949e', fontSize: '13px' }}>
@@ -428,7 +372,6 @@ function App() {
                   <div key={conv._id} onClick={() => selectConversation(conv)}
                     style={{ padding: '14px 16px', borderBottom: '1px solid #21262d', cursor: 'pointer', backgroundColor: isActive ? '#1f6feb18' : 'transparent', borderLeft: isActive ? '3px solid #1f6feb' : '3px solid transparent', transition: 'all 0.15s' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      {/* Avatar */}
                       <div style={{ position: 'relative', flexShrink: 0 }}>
                         <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: getChannelColor(conv.channel), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', fontWeight: 'bold', color: 'white' }}>
                           {getContactInit(contact)}
@@ -439,7 +382,6 @@ function App() {
                           </span>
                         )}
                       </div>
-                      {/* Info */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ color: 'white', fontWeight: '600', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -465,8 +407,6 @@ function App() {
 
           {/* ── CHAT CENTRAL ── */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#0d1117', minWidth: 0 }}>
-            
-            {/* Header del chat */}
             {selectedConversation ? (
               <div style={{ padding: '14px 20px', borderBottom: '1px solid #30363d', backgroundColor: '#161b22', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -482,11 +422,9 @@ function App() {
                     </div>
                   </div>
                 </div>
-                <select
-                  value={selectedConversation.status}
+                <select value={selectedConversation.status}
                   onChange={e => updateConversation(selectedConversation._id, { status: e.target.value })}
-                  style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #30363d', backgroundColor: '#21262d', color: 'white', fontSize: '13px', cursor: 'pointer' }}
-                >
+                  style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #30363d', backgroundColor: '#21262d', color: 'white', fontSize: '13px', cursor: 'pointer' }}>
                   <option value="open">🟢 Abierta</option>
                   <option value="pending">🟡 Pendiente</option>
                   <option value="resolved">🔵 Resuelta</option>
@@ -496,7 +434,6 @@ function App() {
               <div style={{ padding: '14px 20px', borderBottom: '1px solid #30363d', backgroundColor: '#161b22', height: '70px' }} />
             )}
 
-            {/* Mensajes */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {selectedConversation ? (
                 messages.length === 0 ? (
@@ -523,10 +460,8 @@ function App() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input de mensaje */}
             {selectedConversation && (
               <div style={{ padding: '14px 20px', borderTop: '1px solid #30363d', backgroundColor: '#161b22' }}>
-                {/* Respuestas rápidas */}
                 <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
                   {(workspace?.settings?.quickReplies || ['Gracias por contactarnos', 'En breve te atenderemos', '¿En qué más puedo ayudarte?']).slice(0, 4).map((r, i) => (
                     <button key={i} onClick={() => setNewMessage(r)}
@@ -536,14 +471,10 @@ function App() {
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={e => setNewMessage(e.target.value)}
+                  <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)}
                     onKeyPress={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                     placeholder="Escribe un mensaje..."
-                    style={{ flex: 1, padding: '11px 16px', borderRadius: '12px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', outline: 'none', fontSize: '14px' }}
-                  />
+                    style={{ flex: 1, padding: '11px 16px', borderRadius: '12px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', outline: 'none', fontSize: '14px' }} />
                   <button onClick={sendMessage} disabled={sendingMsg || !newMessage.trim()}
                     style={{ padding: '11px 22px', backgroundColor: sendingMsg ? '#1a4a8a' : '#1f6feb', color: 'white', border: 'none', borderRadius: '12px', cursor: sendingMsg ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '14px', transition: 'background 0.2s' }}>
                     {sendingMsg ? '...' : 'Enviar →'}
@@ -557,7 +488,6 @@ function App() {
           <div style={{ width: '280px', backgroundColor: '#161b22', borderLeft: '1px solid #30363d', display: 'flex', flexDirection: 'column' }}>
             {selectedConversation ? (
               <>
-                {/* Tabs info / notas */}
                 <div style={{ display: 'flex', borderBottom: '1px solid #30363d' }}>
                   {['info', 'notes'].map(tab => (
                     <button key={tab} onClick={() => setActiveRightTab(tab)}
@@ -567,25 +497,21 @@ function App() {
                   ))}
                 </div>
 
-                {/* Contenido tab */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
                   {activeRightTab === 'info' ? (
                     <>
-                      {/* Datos del contacto */}
                       {[
-                        { label: 'Nombre',   value: getContactName(selectedConversation.contact) },
-                        { label: 'Canal',    value: `${getChannelIcon(selectedConversation.channel)} ${selectedConversation.channel}` },
+                        { label: 'Nombre',        value: getContactName(selectedConversation.contact) },
+                        { label: 'Canal',         value: `${getChannelIcon(selectedConversation.channel)} ${selectedConversation.channel}` },
                         { label: 'Teléfono / ID', value: selectedConversation.contact?.channelId || selectedConversation.contact?.telefono },
-                        { label: 'Estado',   value: getStatusText(selectedConversation.status) },
-                        { label: 'Asignado', value: selectedConversation.assignedTo?.name || 'Sin asignar' }
+                        { label: 'Estado',        value: getStatusText(selectedConversation.status) },
+                        { label: 'Asignado',      value: selectedConversation.assignedTo?.name || 'Sin asignar' }
                       ].map(item => item.value && (
                         <div key={item.label} style={{ marginBottom: '16px' }}>
                           <div style={{ fontSize: '11px', color: '#8b949e', marginBottom: '3px' }}>{item.label}</div>
                           <div style={{ fontSize: '13px', color: '#c9d1d9', fontWeight: '500' }}>{item.value}</div>
                         </div>
                       ))}
-
-                      {/* Respuestas rápidas (vista completa) */}
                       <div style={{ marginTop: '8px' }}>
                         <div style={{ fontSize: '11px', color: '#8b949e', marginBottom: '8px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⚡ Respuestas rápidas</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -601,7 +527,6 @@ function App() {
                       </div>
                     </>
                   ) : (
-                    /* Notas internas */
                     <>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
                         {notes.length === 0 ? (
@@ -615,15 +540,10 @@ function App() {
                           </div>
                         ))}
                       </div>
-                      {/* Input nueva nota */}
                       <div style={{ borderTop: '1px solid #30363d', paddingTop: '12px' }}>
-                        <textarea
-                          value={newNote}
-                          onChange={e => setNewNote(e.target.value)}
-                          placeholder="Escribe una nota interna..."
-                          rows={3}
-                          style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', fontSize: '12px', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
-                        />
+                        <textarea value={newNote} onChange={e => setNewNote(e.target.value)}
+                          placeholder="Escribe una nota interna..." rows={3}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', fontSize: '12px', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
                         <button onClick={addNote} disabled={!newNote.trim()}
                           style={{ width: '100%', marginTop: '6px', padding: '8px', backgroundColor: '#2d2a1e', border: '1px solid #4a4520', borderRadius: '8px', color: '#e3b341', cursor: newNote.trim() ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: '600' }}>
                           + Guardar nota
