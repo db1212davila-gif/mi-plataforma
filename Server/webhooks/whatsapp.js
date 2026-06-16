@@ -1,8 +1,8 @@
-const router   = require('express').Router();
-const Contact      = require('../models/Contact');
+const router = require('express').Router();
+const Contact = require('../models/Contact');
 const Conversation = require('../models/Conversation');
-const Message      = require('../models/Message');
-const Workspace    = require('../models/Workspace');
+const Message = require('../models/Message');
+const Workspace = require('../models/Workspace');
 
 // ─────────────────────────────────────────────────────────────
 // POST /webhook/whatsapp/:instanceName
@@ -13,14 +13,25 @@ router.post('/:instanceName', async (req, res) => {
     const body = req.body;
     const instanceName = req.params.instanceName;
 
+    console.log('📩 Webhook recibido:', JSON.stringify(body, null, 2));
+
     // Solo procesar eventos de mensajes entrantes
-    if (body.event !== 'messages.upsert') return res.sendStatus(200);
+    if (body.event !== 'messages.upsert') {
+      console.log('⏭️ Evento ignorado:', body.event);
+      return res.sendStatus(200);
+    }
 
     const msgData = body.data;
-    if (!msgData || msgData.key?.fromMe) return res.sendStatus(200);
+    if (!msgData || msgData.key?.fromMe) {
+      console.log('⏭️ Mensaje propio o sin datos');
+      return res.sendStatus(200);
+    }
 
     const phoneNumber = msgData.key.remoteJid?.replace('@s.whatsapp.net', '');
-    if (!phoneNumber) return res.sendStatus(200);
+    if (!phoneNumber) {
+      console.log('⏭️ No se pudo extraer el número de teléfono');
+      return res.sendStatus(200);
+    }
 
     const pushName = msgData.pushName || phoneNumber;
     const text =
@@ -29,58 +40,86 @@ router.post('/:instanceName', async (req, res) => {
       msgData.message?.imageMessage?.caption ||
       '[Archivo multimedia]';
 
-    // ── Buscar workspace por instanceName en el canal WhatsApp ──
-    // Primero intenta coincidir con el nombre de instancia guardado en channels.whatsapp
+    console.log(`📱 Mensaje de ${pushName} (${phoneNumber}): "${text}"`);
+
+    // ── Buscar o CREAR workspace automáticamente ──
     let workspace = await Workspace.findOne({
       $or: [
         { 'channels.whatsapp.instanceName': instanceName },
-        { 'channels.whatsapp.enabled': true }          // fallback: primer workspace activo
+        { 'channels.whatsapp.enabled': true }
       ]
     });
 
-    // Último recurso: cualquier workspace
-    if (!workspace) workspace = await Workspace.findOne();
+    // Si no existe, CREAR UNO NUEVO automáticamente
     if (!workspace) {
-      console.warn('⚠️  Webhook recibido pero no hay workspaces en la DB');
-      return res.sendStatus(200);
+      console.log('⚠️ No se encontró workspace, creando uno automáticamente...');
+      workspace = new Workspace({
+        name: 'Mi Pizzería',
+        slug: 'mi-pizzeria',
+        channels: {
+          whatsapp: {
+            enabled: true,
+            instanceName: instanceName
+          }
+        }
+      });
+      await workspace.save();
+      console.log(`✅ Workspace creado: ${workspace.name} (ID: ${workspace._id})`);
+    }
+
+    // Si aún no hay workspace (por si falló la creación), buscar cualquiera
+    if (!workspace) {
+      const anyWorkspace = await Workspace.findOne();
+      if (anyWorkspace) {
+        workspace = anyWorkspace;
+        console.log(`📌 Usando workspace existente: ${workspace.name}`);
+      } else {
+        console.warn('⚠️ No se pudo crear ni encontrar ningún workspace');
+        return res.sendStatus(200);
+      }
     }
 
     const workspaceId = workspace._id;
 
     // ── Buscar o crear contacto ──
-    let contact = await Contact.findOne({ workspace: workspaceId, channelId: phoneNumber, canal: 'whatsapp' });
+    let contact = await Contact.findOne({
+      workspace: workspaceId,
+      channelId: phoneNumber,
+      canal: 'whatsapp'
+    });
+
     if (!contact) {
       contact = new Contact({
-        workspace:  workspaceId,
-        nombre:     pushName,
-        name:       pushName,        // campo alternativo usado en App.js
-        canal:      'whatsapp',
-        channel:    'whatsapp',
-        channelId:  phoneNumber,
-        telefono:   phoneNumber
+        workspace: workspaceId,
+        nombre: pushName,
+        name: pushName,
+        canal: 'whatsapp',
+        channel: 'whatsapp',
+        channelId: phoneNumber,
+        telefono: phoneNumber
       });
       await contact.save();
       console.log(`👤 Nuevo contacto creado: ${pushName} (${phoneNumber})`);
     } else if (contact.nombre !== pushName) {
-      // Actualizar nombre si cambió
       contact.nombre = pushName;
-      contact.name   = pushName;
+      contact.name = pushName;
       await contact.save();
+      console.log(`✏️ Contacto actualizado: ${pushName}`);
     }
 
     // ── Buscar o crear conversación ──
     let conversation = await Conversation.findOne({
       workspace: workspaceId,
-      contact:   contact._id,
-      channel:   'whatsapp'
+      contact: contact._id,
+      channel: 'whatsapp'
     });
 
     if (!conversation) {
       conversation = new Conversation({
-        workspace:    workspaceId,
-        contact:      contact._id,
-        channel:      'whatsapp',
-        status:       'open',
+        workspace: workspaceId,
+        contact: contact._id,
+        channel: 'whatsapp',
+        status: 'open',
         instanceName: instanceName
       });
       await conversation.save();
@@ -90,40 +129,41 @@ router.post('/:instanceName', async (req, res) => {
     // ── Guardar mensaje ──
     const newMessage = new Message({
       conversation: conversation._id,
-      workspace:    workspaceId,
-      from:         'contact',
-      text:         text,
-      channel:      'whatsapp',
-      sender:       contact._id,
-      senderModel:  'Contact',
-      timestamp:    new Date()
+      workspace: workspaceId,
+      from: 'contact',
+      text: text,
+      channel: 'whatsapp',
+      sender: contact._id,
+      senderModel: 'Contact',
+      timestamp: new Date()
     });
     await newMessage.save();
 
     // ── Actualizar conversación ──
-    conversation.lastMessage     = text;
+    conversation.lastMessage = text;
     conversation.lastMessageTime = new Date();
-    conversation.unreadCount     = (conversation.unreadCount || 0) + 1;
-    conversation.status          = conversation.status === 'resolved' ? 'open' : conversation.status;
+    conversation.unreadCount = (conversation.unreadCount || 0) + 1;
+    conversation.status = conversation.status === 'resolved' ? 'open' : conversation.status;
     await conversation.save();
 
-    // ── Notificar frontend vía Socket.IO (sala por workspace) ──
+    // ── Notificar frontend vía Socket.IO ──
     const io = req.app.get('io');
     if (io) {
-      // Emitir a la sala del workspace para que solo los agentes de esa empresa lo vean
       io.to(workspaceId.toString()).emit('new_message', {
         conversationId: conversation._id,
-        message:        newMessage,
-        contact:        contact,
-        conversation:   conversation
+        message: newMessage,
+        contact: contact,
+        conversation: conversation
       });
+      console.log('📨 Notificación enviada al frontend');
     }
 
-    console.log(`✅ [${instanceName}] Mensaje de ${pushName} (${phoneNumber}): "${text}"`);
+    console.log(`✅ [${instanceName}] Mensaje procesado de ${pushName} (${phoneNumber}): "${text}"`);
     res.sendStatus(200);
 
   } catch (error) {
     console.error('❌ Error en webhook WhatsApp:', error);
+    console.error('Stack:', error.stack);
     res.sendStatus(500);
   }
 });
