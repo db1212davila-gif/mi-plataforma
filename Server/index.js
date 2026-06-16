@@ -56,13 +56,12 @@ app.use(express.json());
 const whatsappWebhook  = require('./webhooks/whatsapp');
 const telegramWebhook  = require('./webhooks/telegram');
 const messengerWebhook = require('./webhooks/messenger');
+const chatbotRouter    = require('./routes/chatbot');
 
 app.use('/webhook/whatsapp',  whatsappWebhook);
 app.use('/webhook/telegram',  telegramWebhook);
 app.use('/webhook/messenger', messengerWebhook);
-
-const { webhookRouter } = require('./routes/chatbot');
-app.use('/webhook/chatbot', webhookRouter);
+app.use('/webhook/chatbot',   chatbotRouter);
 
 // ─────────────────────────────────────────────────────────────
 // AUTH MIDDLEWARE
@@ -97,9 +96,7 @@ app.use('/api/admin',         auth, adminRoutes);
 app.use('/api/leads',         auth, leadRoutes);
 app.use('/api/pipeline',      auth, pipelineRoutes);
 app.use('/api/whatsapp',      auth, whatsappRoutes);
-
-const { apiRouter } = require('./routes/chatbot');
-app.use('/api/chatbot', apiRouter);
+app.use('/api/chatbot',       auth, chatbotRouter);
 
 // ─────────────────────────────────────────────────────────────
 // RUTA DE SALUD
@@ -108,7 +105,7 @@ app.get('/', (req, res) => {
   res.json({
     message:  'OmniConnect API funcionando 🚀',
     version:  '2.0',
-    channels: ['whatsapp', 'telegram', 'messenger']
+    channels: ['whatsapp', 'telegram', 'messenger', 'chatbot']
   });
 });
 
