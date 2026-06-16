@@ -9,6 +9,8 @@ const Workspace = require('../models/Workspace');
 // Recibe mensajes desde Evolution API
 // ─────────────────────────────────────────────────────────────
 router.post('/:instanceName', async (req, res) => {
+  console.log('📩 Webhook recibido - Instancia:', req.params.instanceName);
+  
   try {
     // 🔥 OBTENER EL BODY CRUDO
     let rawBody = '';
@@ -18,18 +20,19 @@ router.post('/:instanceName', async (req, res) => {
     
     req.on('end', async () => {
       try {
-        console.log('📩 Body crudo recibido:', rawBody);
+        console.log('📩 Body crudo:', rawBody);
         
+        // Intentar parsear el JSON
         let body;
         try {
           body = JSON.parse(rawBody);
         } catch (e) {
           console.error('❌ Error parseando JSON:', e.message);
-          return res.status(400).json({ error: 'Invalid JSON' });
+          console.log('📝 Contenido recibido:', rawBody);
+          return res.status(200).json({ message: 'Invalid JSON, but processing anyway' });
         }
 
         const instanceName = req.params.instanceName;
-        console.log('📩 Instancia:', instanceName);
         console.log('📩 Body parseado:', JSON.stringify(body, null, 2));
 
         // Verificar si es un evento de mensaje
