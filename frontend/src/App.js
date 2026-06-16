@@ -7,9 +7,8 @@ import AgentsPanel from './pages/AgentsPanel';
 import ReportsPanel from './pages/ReportsPanel';
 import SettingsPanel from './pages/SettingsPanel';
 import BillingPanel from './pages/BillingPanel';
-{activeTab === 'chatbot' && <ChatbotPanel workspaceId={workspace?.id} token={token} />}
-import io from 'socket.io-client';
 import ChatbotPanel from './pages/ChatbotPanel';
+import io from 'socket.io-client';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:4001';
 
@@ -24,8 +23,7 @@ const getContactName  = (contact) => contact?.name || contact?.nombre || 'Sin no
 const getContactInit  = (contact) => (contact?.name || contact?.nombre || '?').charAt(0).toUpperCase();
 const formatTime      = (d) => d ? new Date(d).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '';
 
-// ✅ FIX: extrae siempre el string del workspaceId aunque venga como objeto
-const getWorkspaceId  = (conv, fallback) => {
+const getWorkspaceId = (conv, fallback) => {
   if (!conv) return fallback;
   const ws = conv.workspace;
   if (!ws) return fallback;
@@ -165,7 +163,6 @@ function App() {
     setSelectedConv(null); setConversations([]); setMessages([]);
   };
 
-  // ✅ FIX: usa getWorkspaceId para extraer el string correcto
   const selectConversation = async (conv) => {
     setSelectedConv(conv);
     setMessages([]);
@@ -190,7 +187,6 @@ function App() {
     }
   };
 
-  // ✅ FIX: usa getWorkspaceId para extraer el string correcto
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || sendingMsg) return;
     setSendingMsg(true);
@@ -314,6 +310,7 @@ function App() {
       {activeTab === 'reports'  && <ReportsPanel   workspaceId={workspace?.id} token={token} />}
       {activeTab === 'settings' && <SettingsPanel  workspaceId={workspace?.id} token={token} />}
       {activeTab === 'billing'  && <BillingPanel   workspace={workspace} user={user} />}
+      {activeTab === 'chatbot'  && <ChatbotPanel   workspaceId={workspace?.id} token={token} />}
 
       {activeTab === 'conversations' && (
         <div style={{ display: 'flex', height: 'calc(100vh - 70px)' }}>
@@ -547,25 +544,4 @@ function App() {
                           placeholder="Escribe una nota interna..." rows={3}
                           style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', fontSize: '12px', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
                         <button onClick={addNote} disabled={!newNote.trim()}
-                          style={{ width: '100%', marginTop: '6px', padding: '8px', backgroundColor: '#2d2a1e', border: '1px solid #4a4520', borderRadius: '8px', color: '#e3b341', cursor: newNote.trim() ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: '600' }}>
-                          + Guardar nota
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#8b949e', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
-                📌 Selecciona una<br />conversación para<br />ver los detalles
-              </div>
-            )}
-          </div>
-
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default App;
+                          style={{ width: '100%', marginTop: '6px', padding: '8px', backgroundColor: '#2d2a1e', border: '1px solid #4a4520', borderRadius: '8px', color: '#e3b341',
