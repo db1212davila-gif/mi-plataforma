@@ -5,10 +5,6 @@ const Contact       = require('../models/Contact');
 const Message       = require('../models/Message');
 const auth          = require('../middleware/auth');
 
-// ============================================================
-// FUNCIONES AUXILIARES
-// ============================================================
-
 function isWithinWorkingHours(wh) {
   const now     = new Date();
   const day     = now.getDay();
@@ -65,7 +61,7 @@ async function sendWhatsAppReply(workspace, phoneNumber, text) {
 }
 
 // ============================================================
-// WEBHOOK PÚBLICO (Evolution API llama aquí, sin auth)
+// WEBHOOK PÚBLICO
 // ============================================================
 const webhookRouter = express.Router();
 
@@ -74,25 +70,40 @@ webhookRouter.post('/webhook', async (req, res) => {
     const body    = req.body;
     const msgData = body?.data;
 
-    if (!msgData?.message)    return res.sendStatus(200);
-    if (msgData.key?.fromMe)  return res.sendStatus(200);
+    console.log('📨 Webhook recibido body keys:', Object.keys(body || {}));
+    console.log('📨 msgData:', JSON.stringify(msgData)?.slice(0, 300));
 
-    const phone       = msgData.key?.remoteJid?.replace('@s.whatsapp.net', '');
+    if (!msgData?.message)   return res.sendStatus(200);
+    if (msgData.key?.fromMe) return res.sendStatus(200);
+
+    const phoneFull   = msgData.key?.remoteJid?.replace('@s.whatsapp.net', '') || '';
+    const phoneLocal  = phoneFull.startsWith('593') ? '0' + phoneFull.slice(3) : phoneFull;
     const userMessage = msgData.message?.conversation ||
                         msgData.message?.extendedTextMessage?.text || '';
 
-    if (!phone || !userMessage) return res.sendStatus(200);
+    console.log('📞 phoneFull:', phoneFull, '| phoneLocal:', phoneLocal);
+    console.log('💬 mensaje:', userMessage);
 
-    const contact = await Contact.findOne({ channelId: phone, canal: 'whatsapp' });
+    if (!phoneFull || !userMessage) return res.sendStatus(200);
+
+    // Buscar con ambos formatos de número
+    const contact = await Contact.findOne({
+      channelId: { $in: [phoneFull, phoneLocal] },
+      canal: 'whatsapp'
+    });
+
+    console.log('👤 Contacto:', contact ? contact.nombre : 'NO ENCONTRADO');
     if (!contact) return res.sendStatus(200);
 
     const conversation = await Conversation.findOne({ contact: contact._id }).populate('workspace');
+    console.log('💬 Conversación:', conversation ? conversation._id : 'NO ENCONTRADA');
     if (!conversation) return res.sendStatus(200);
 
     const config = await ChatbotConfig.findOne({
       workspace: conversation.workspace._id,
       enabled:   true
     });
+    console.log('🤖 Config:', config ? `modo=${config.mode}` : 'NO ENCONTRADA o INACTIVA');
     if (!config) return res.sendStatus(200);
 
     let shouldReply = false;
@@ -104,12 +115,14 @@ webhookRouter.post('/webhook', async (req, res) => {
       shouldReply = !conversation.asignadoA;
     }
 
+    console.log('✅ shouldReply:', shouldReply);
     if (!shouldReply) return res.sendStatus(200);
 
     const recentMsgs = await Message.find({ conversation: conversation._id })
       .sort({ timestamp: -1 }).limit(10).lean();
 
     const botReply = await askClaude(config, userMessage, recentMsgs.reverse());
+    console.log('🤖 Respuesta:', botReply);
 
     await Message.create({
       conversation: conversation._id,
@@ -125,7 +138,7 @@ webhookRouter.post('/webhook', async (req, res) => {
       lastMessageTime: new Date()
     });
 
-    await sendWhatsAppReply(conversation.workspace, phone, botReply);
+    await sendWhatsAppReply(conversation.workspace, phoneFull, botReply);
 
     const io = req.app.get('io');
     if (io) {
@@ -137,46 +150,34 @@ webhookRouter.post('/webhook', async (req, res) => {
 
     res.sendStatus(200);
   } catch (err) {
-    console.error('❌ Chatbot webhook error:', err.message);
+    console.error('❌ Chatbot webhook error:', err.message, err.stack);
     res.sendStatus(500);
   }
 });
 
 // ============================================================
-// RUTAS PROTEGIDAS (requieren auth, workspace viene del token)
+// RUTAS PROTEGIDAS
 // ============================================================
 const apiRouter = express.Router();
 
-// GET /api/chatbot/config
 apiRouter.get('/config', auth, async (req, res) => {
   try {
-    // req.workspaceId viene del JWT (puesto por auth middleware)
     const workspaceId = req.workspaceId || req.user?.workspace;
     if (!workspaceId) return res.status(400).json({ error: 'Workspace no identificado' });
-
-    const config = await ChatbotConfig.findOne(
-      { workspace: workspaceId },
-      { anthropicApiKey: 0 }
-    );
+    const config = await ChatbotConfig.findOne({ workspace: workspaceId }, { anthropicApiKey: 0 });
     res.json(config || {});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// PUT /api/chatbot/config
 apiRouter.put('/config', auth, async (req, res) => {
   try {
     const workspaceId = req.workspaceId || req.user?.workspace;
     if (!workspaceId) return res.status(400).json({ error: 'Workspace no identificado' });
-
     const { anthropicApiKey, ...rest } = req.body;
     const update = { ...rest, workspace: workspaceId };
-
-    if (anthropicApiKey && anthropicApiKey.trim()) {
-      update.anthropicApiKey = anthropicApiKey.trim();
-    }
-
+    if (anthropicApiKey && anthropicApiKey.trim()) update.anthropicApiKey = anthropicApiKey.trim();
     const config = await ChatbotConfig.findOneAndUpdate(
       { workspace: workspaceId },
       update,
@@ -188,19 +189,15 @@ apiRouter.put('/config', auth, async (req, res) => {
   }
 });
 
-// POST /api/chatbot/test
 apiRouter.post('/test', auth, async (req, res) => {
   try {
     const workspaceId = req.workspaceId || req.user?.workspace;
     if (!workspaceId) return res.status(400).json({ error: 'Workspace no identificado' });
-
     const { message } = req.body;
     const config = await ChatbotConfig.findOne({ workspace: workspaceId });
-
     if (!config?.anthropicApiKey) {
       return res.status(400).json({ error: 'No hay API key configurada. Guarda primero la configuración.' });
     }
-
     const reply = await askClaude(config, message);
     res.json({ reply });
   } catch (err) {
