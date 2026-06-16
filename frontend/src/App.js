@@ -12,9 +12,6 @@ import io from 'socket.io-client';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:4001';
 
-// ─────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────
 const getChannelIcon  = (c) => ({ whatsapp: '💚', telegram: '💙', messenger: '💜', email: '📧' }[c] || '💬');
 const getChannelColor = (c) => ({ whatsapp: '#25D366', telegram: '#0088cc', messenger: '#0084ff', email: '#EA4335' }[c] || '#666');
 const getStatusColor  = (s) => ({ open: '#4caf50', pending: '#ff9800', resolved: '#2196f3' }[s] || '#9e9e9e');
@@ -160,7 +157,7 @@ function App() {
     socketRef.current?.disconnect();
     localStorage.clear();
     setUser(null); setWorkspace(null); setIsLoggedIn(false);
-    setSelectedConv(null); setConversations([]); setMessages([]);
+    setSelectedConv(null); setConversations([]); setMessages([]); setNotes([]);
   };
 
   const selectConversation = async (conv) => {
@@ -168,10 +165,8 @@ function App() {
     setMessages([]);
     setNotes(conv.notes || []);
     setActiveRightTab('info');
-
     const token = localStorage.getItem('token');
     const wsId  = getWorkspaceId(conv, workspace?.id);
-
     try {
       const res = await fetch(`${API_URL}/api/conversations/${wsId}/${conv._id}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -192,7 +187,6 @@ function App() {
     setSendingMsg(true);
     const token = localStorage.getItem('token');
     const wsId  = getWorkspaceId(selectedConversation, workspace?.id);
-
     try {
       const res = await fetch(`${API_URL}/api/messages/${wsId}/${selectedConversation._id}`, {
         method:  'POST',
@@ -540,8 +534,36 @@ function App() {
                         ))}
                       </div>
                       <div style={{ borderTop: '1px solid #30363d', paddingTop: '12px' }}>
-                        <textarea value={newNote} onChange={e => setNewNote(e.target.value)}
-                          placeholder="Escribe una nota interna..." rows={3}
-                          style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', fontSize: '12px', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
-                        <button onClick={addNote} disabled={!newNote.trim()}
-                          style={{ width: '100%', marginTop: '6px', padding: '8px', backgroundColor: '#2d2a1e', border: '1px solid #4a4520', borderRadius: '8px', color: '#e3b341',
+                        <textarea
+                          value={newNote}
+                          onChange={e => setNewNote(e.target.value)}
+                          placeholder="Escribe una nota interna..."
+                          rows={3}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #30363d', backgroundColor: '#0d1117', color: 'white', fontSize: '12px', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+                        />
+                        <button
+                          onClick={addNote}
+                          disabled={!newNote.trim()}
+                          style={{ width: '100%', marginTop: '6px', padding: '8px', backgroundColor: '#2d2a1e', border: '1px solid #4a4520', borderRadius: '8px', color: '#e3b341', cursor: newNote.trim() ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: '600' }}
+                        >
+                          + Guardar nota
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: '#8b949e', fontSize: '13px' }}>
+                Selecciona una conversación
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;
