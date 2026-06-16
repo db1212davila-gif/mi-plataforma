@@ -7,7 +7,9 @@ import AgentsPanel from './pages/AgentsPanel';
 import ReportsPanel from './pages/ReportsPanel';
 import SettingsPanel from './pages/SettingsPanel';
 import BillingPanel from './pages/BillingPanel';
+{activeTab === 'chatbot' && <ChatbotPanel workspaceId={workspace?.id} token={token} />}
 import io from 'socket.io-client';
+import ChatbotPanel from './pages/ChatbotPanel';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:4001';
 

@@ -61,6 +61,9 @@ app.use('/webhook/whatsapp',  whatsappWebhook);
 app.use('/webhook/telegram',  telegramWebhook);
 app.use('/webhook/messenger', messengerWebhook);
 
+const { webhookRouter } = require('./routes/chatbot');
+app.use('/webhook/chatbot', webhookRouter);
+
 // ─────────────────────────────────────────────────────────────
 // AUTH MIDDLEWARE
 // ─────────────────────────────────────────────────────────────
@@ -94,6 +97,9 @@ app.use('/api/admin',         auth, adminRoutes);
 app.use('/api/leads',         auth, leadRoutes);
 app.use('/api/pipeline',      auth, pipelineRoutes);
 app.use('/api/whatsapp',      auth, whatsappRoutes);
+
+const { apiRouter } = require('./routes/chatbot');
+app.use('/api/chatbot', apiRouter);
 
 // ─────────────────────────────────────────────────────────────
 // RUTA DE SALUD

@@ -28,6 +28,7 @@ const Navbar = ({ user, workspace, activeTab, setActiveTab, onLogout }) => {
     { id: 'reports', label: 'Reportes', icon: '📈' },
     { id: 'settings', label: 'Configuración', icon: '⚙️' },
     { id: 'billing', label: 'Facturación', icon: '💰' },
+    { id: 'chatbot', label: 'Chatbot', icon: '🤖' },
   ];
 
   const menu = isSuperAdmin ? superAdminMenu : clientMenu;
