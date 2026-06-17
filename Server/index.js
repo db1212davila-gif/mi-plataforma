@@ -120,6 +120,7 @@ app.use((err, req, res, next) => {
 // ─────────────────────────────────────────────────────────────
 // MONGODB
 // ─────────────────────────────────────────────────────────────
+console.log("Conectando a:", process.env.MONGO_URI);
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ Conectado a MongoDB'))
   .catch(err => console.error('❌ Error MongoDB:', err));
