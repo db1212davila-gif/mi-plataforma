@@ -8,7 +8,7 @@ const workspaceSchema = new mongoose.Schema({
   owner: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false // Cambia de 'true' a 'false'
   },
   suspended: {
     type: Boolean,
